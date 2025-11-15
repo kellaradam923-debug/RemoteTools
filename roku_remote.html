@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Roku Remote</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <style>
+        @import url('https://fonts.fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background */
+        }
+        .remote-button {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.75rem;
+            border-radius: 0.75rem; /* Large rounded corners */
+            transition: all 0.1s ease-in-out;
+            box-shadow: 0 4px #2c333b; /* Shadow for 3D effect */
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #d1d5db; /* Light text */
+        }
+        .remote-button:active {
+            box-shadow: 0 2px #2c333b;
+            transform: translateY(2px);
+        }
+        .control-bg {
+            background-color: #1e2533;
+        }
+        .action-bg {
+            background-color: #9333ea; /* Purple 600 for primary actions */
+            box-shadow: 0 4px #6b21a8; /* Purple 800 shadow */
+        }
+        .action-bg:active {
+            box-shadow: 0 2px #6b21a8;
+            transform: translateY(2px);
+        }
+        .power-btn {
+            background-color: #dc2626; /* Red 600 */
+            box-shadow: 0 4px #991b1b; /* Darker red shadow */
+        }
+        .power-btn:active {
+            box-shadow: 0 2px #991b1b;
+        }
+        .discovery-link {
+            @apply text-purple-400 text-sm font-medium cursor-pointer hover:underline;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="remote-container" class="w-full max-w-sm bg-gray-800 rounded-2xl p-6 shadow-2xl">
+        <h1 class="text-3xl font-bold text-center text-white mb-4">Roku Remote</h1>
+        <p class="text-xs text-gray-400 text-center mb-4">
+            Keyboard controls enabled (Arrows, Enter, Space, **Escape**, H, **P**, Backspace, R, F, M, +,-). 
+            **Continuous actions require a 3-second hold.**
+        </p>
+
+        <!-- IP Address and Connection Status -->
+        <div class="mb-6 space-y-3">
+            <input type="text" id="roku-ip" value="192.168.1.XXX"
+                class="w-full p-3 rounded-lg text-gray-900 bg-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Enter Roku IP Address">
+            <button onclick="checkConnection()" class="w-full py-2 action-bg hover:bg-purple-700">
+                Connect & Test
+            </button>
+            
+            <div class="text-center pt-2">
+                <span onclick="openDiscoveryModal()" class="discovery-link">
+                    Don't know your Roku's IP? Find it automatically.
+                </span>
+            </div>
+
+            <div id="status-message" class="text-center text-sm font-medium text-gray-400">
+                Enter IP to begin.
+            </div >
+            <div id="cors-warning" class="text-center text-xs text-yellow-500 mt-2 p-2 bg-gray-900 rounded-lg hidden">
+                ⚠️ Connection/Scan requires a **CORS bypass** extension to be active.
+            </div>
+        </div>
+        
+        <!-- === TEXT INPUT SECTION === -->
+        <div class="mb-6 p-4 bg-gray-900 rounded-xl border border-gray-700">
+            <h2 class="text-lg font-semibold text-white mb-3">Text Input (Typing)</h2>
+            <input type="text" id="text-to-send" 
+                class="w-full p-3 rounded-lg text-gray-900 bg-gray-200 border border-gray-600 mb-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Type text for search bar, etc.">
+            <button onclick="sendTextCommand()" class="w-full py-2 action-bg hover:bg-purple-700 font-bold">
+                Send Text (Type)
+            </button>
+            <p class="text-xs text-gray-400 mt-2">
+                Sends characters one by one with a delay to prevent flicker.
+            </p>
+        </div>
+        <!-- === END TEXT SECTION === -->
+
+
+        <!-- Main Control Buttons Grid -->
+        <div class="grid grid-cols-3 gap-3 mb-6">
+            <button onclick="sendECPCommand('press', 'Home')" class="remote-button control-bg col-span-1 hover:bg-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6m-3 6v-7" />
+                </svg>
+            </button>
+            <button onclick="sendECPCommand('press', 'Back')" class="remote-button control-bg col-span-1 hover:bg-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </button>
+            <button onclick="sendECPCommand('press', 'Info')" class="remote-button control-bg col-span-1 hover:bg-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Directional Pad (D-Pad) -->
+        <div class="grid grid-cols-3 gap-3 mb-6 p-4 bg-gray-700 rounded-xl">
+            <!-- Up -->
+            <div class="col-span-1"></div>
+            <button 
+                ontouchstart="handleContinuousCommand('Up', 'down')" 
+                ontouchend="handleContinuousCommand('Up', 'up')" 
+                onmousedown="handleContinuousCommand('Up', 'down')" 
+                onmouseup="handleContinuousCommand('Up', 'up')" 
+                class="remote-button control-bg hover:bg-gray-600 h-12 w-12 mx-auto"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+            </button>
+            <div class="col-span-1"></div>
+
+            <!-- Left, Select, Right -->
+            <button 
+                ontouchstart="handleContinuousCommand('Left', 'down')" 
+                ontouchend="handleContinuousCommand('Left', 'up')" 
+                onmousedown="handleContinuousCommand('Left', 'down')" 
+                onmouseup="handleContinuousCommand('Left', 'up')" 
+                class="remote-button control-bg hover:bg-gray-600 h-12 w-12 mx-auto"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            <button onclick="sendECPCommand('press', 'Select')" class="remote-button action-bg hover:bg-purple-700 font-extrabold h-16 w-16 text-lg mx-auto">
+                OK
+            </button>
+            <button 
+                ontouchstart="handleContinuousCommand('Right', 'down')" 
+                ontouchend="handleContinuousCommand('Right', 'up')" 
+                onmousedown="handleContinuousCommand('Right', 'down')" 
+                onmouseup="handleContinuousCommand('Right', 'up')" 
+                class="remote-button control-bg hover:bg-gray-600 h-12 w-12 mx-auto"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+
+            <!-- Down -->
+            <div class="col-span-1"></div>
+            <button 
+                ontouchstart="handleContinuousCommand('Down', 'down')" 
+                ontouchend="handleContinuousCommand('Down', 'up')" 
+                onmousedown="handleContinuousCommand('Down', 'down')" 
+                onmouseup="handleContinuousCommand('Down', 'up')" 
+                class="remote-button control-bg hover:bg-gray-600 h-12 w-12 mx-auto"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            <div class="col-span-1"></div>
+        </div>
+
+        <!-- Media Controls -->
+        <div class="grid grid-cols-3 gap-3 mb-6">
+            <button 
+                ontouchstart="handleContinuousCommand('Rev', 'down')" 
+                ontouchend="handleContinuousCommand('Rev', 'up')" 
+                onmousedown="handleContinuousCommand('Rev', 'down')" 
+                onmouseup="handleContinuousCommand('Rev', 'up')" 
+                class="remote-button control-bg hover:bg-gray-700"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-9-7 9-7v14zM22 19l-9-7 9-7v14z" />
+                </svg>
+            </button>
+            <button onclick="sendECPCommand('press', 'Play')" class="remote-button action-bg hover:bg-purple-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+            <button 
+                ontouchstart="handleContinuousCommand('Fwd', 'down')" 
+                ontouchend="handleContinuousCommand('Fwd', 'up')" 
+                onmousedown="handleContinuousCommand('Fwd', 'down')" 
+                onmouseup="handleContinuousCommand('Fwd', 'up')" 
+                class="remote-button control-bg hover:bg-gray-700"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 5l9 7-9 7V5zM2 5l9 7-9 7V5z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Power and Volume Controls -->
+        <div class="grid grid-cols-3 gap-3">
+            <!-- Power Button - single press -->
+            <button onclick="sendECPCommand('press', 'Power')" class="remote-button power-btn hover:bg-red-600">
+                Power
+            </button>
+            <!-- Volume Down - held state -->
+            <button 
+                ontouchstart="handleContinuousCommand('VolumeDown', 'down')" 
+                ontouchend="handleContinuousCommand('VolumeDown', 'up')" 
+                onmousedown="handleContinuousCommand('VolumeDown', 'down')" 
+                onmouseup="handleContinuousCommand('VolumeDown', 'up')" 
+                class="remote-button control-bg hover:bg-gray-700"
+            >
+                Vol -
+            </button>
+            <!-- Volume Up - held state -->
+            <button 
+                ontouchstart="handleContinuousCommand('VolumeUp', 'down')" 
+                ontouchend="handleContinuousCommand('VolumeUp', 'up')" 
+                onmousedown="handleContinuousCommand('VolumeUp', 'down')" 
+                onmouseup="handleContinuousCommand('VolumeUp', 'up')" 
+                class="remote-button control-bg hover:bg-gray-700"
+            >
+                Vol +
+            </button>
+        </div>
+
+        <!-- Mute and Help Button -->
+        <div class="grid grid-cols-1 gap-3 mt-3">
+            <button onclick="sendECPCommand('press', 'VolumeMute')" class="remote-button control-bg hover:bg-gray-700">
+                Mute
+            </button>
+            <button onclick="openHelpModal()" class="remote-button action-bg hover:bg-purple-700 shadow-md">
+                Keyboard Help (K)
+            </button>
+        </div>
+
+        <div id="error-box" class="mt-4 p-3 bg-red-800 text-white text-sm rounded-lg hidden"></div>
+
+    </div>
+
+    <!-- IP Discovery Modal Window (Unchanged) -->
+    <div id="ip-discovery-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">Automatic IP Discovery</h2>
+            <div class="text-xs text-yellow-500 mb-4 p-2 bg-gray-700 rounded-md">
+                **WARNING:** This feature requires a **CORS bypass** extension to work. It will scan common network IP ranges (up to .20 in two subnets). This process can take up to 30 seconds.
+            </div>
+
+            <button id="start-scan-btn" onclick="startIPDiscovery()" class="w-full py-2 action-bg hover:bg-purple-700 mb-4">
+                Start Network Scan
+            </button>
+
+            <div id="discovery-status" class="text-center text-sm font-medium text-gray-400 mb-4">
+                Scan for devices on the same network.
+            </div>
+
+            <ul id="discovered-list" class="space-y-2 max-h-48 overflow-y-auto bg-gray-700 p-3 rounded-lg">
+                <li class="text-gray-400 text-sm">No devices found yet.</li>
+            </ul>
+
+            <button onclick="closeDiscoveryModal()" class="mt-6 w-full py-2 remote-button control-bg hover:bg-gray-700">
+                Close
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Keyboard Help Modal Window (Unchanged) -->
+    <div id="help-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">Keyboard Shortcuts</h2>
+            <div id="shortcut-list" class="text-gray-300 space-y-2 text-sm">
+                <div class="flex justify-between p-2 bg-gray-700 rounded-md">
+                    <span class="font-bold">Arrows</span>
+                    <span>Up, Down, Left, Right</span>
+                </div>
+                <div class="flex justify-between p-2">
+                    <span class="font-bold">OK/Select</span>
+                    <span>Enter</span>
+                </div>
+                <div class="flex justify-between p-2 bg-gray-700 rounded-md">
+                    <span class="font-bold">Back</span>
+                    <span>Escape, Backspace</span>
+                </div>
+                <div class="flex justify-between p-2">
+                    <span class="font-bold">Home</span>
+                    <span>H</span>
+                </div>
+                <div class="flex justify-between p-2 bg-gray-700 rounded-md">
+                    <span class="font-bold">Play/Pause</span>
+                    <span>Spacebar</span>
+                </div>
+                <div class="flex justify-between p-2">
+                    <span class="font-bold">Rewind/Fast Fwd</span>
+                    <span>R / F</span>
+                </div>
+                <div class="flex justify-between p-2 bg-gray-700 rounded-md">
+                    <span class="font-bold">Volume Up/Down</span>
+                    <span>+ / - (or PageUp/Down)</span>
+                </div>
+                <div class="flex justify-between p-2">
+                    <span class="font-bold">Mute</span>
+                    <span>M</span>
+                </div>
+                <div class="flex justify-between p-2 bg-gray-700 rounded-md">
+                    <span class="font-bold">Power</span>
+                    <span>P</span>
+                </div>
+                <div class="flex justify-between p-2">
+                    <span class="font-bold">Show Help</span>
+                    <span>K</span>
+                </div>
+            </div>
+            <button onclick="closeHelpModal()" class="mt-6 w-full py-2 action-bg hover:bg-purple-700">
+                Close
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        // Set the default IP and get elements
+        const rokuIpInput = document.getElementById('roku-ip');
+        const statusMessage = document.getElementById('status-message');
+        const errorBox = document.getElementById('error-box');
+        const corsWarning = document.getElementById('cors-warning');
+        const helpModal = document.getElementById('help-modal');
+        const discoveryModal = document.getElementById('ip-discovery-modal');
+        const discoveryStatus = document.getElementById('discovery-status');
+        const discoveredList = document.getElementById('discovered-list');
+        const startScanBtn = document.getElementById('start-scan-btn');
+        const textToSendInput = document.getElementById('text-to-send'); 
+
+        const defaultRokuPort = 8060;
+        const defaultIpPlaceholder = '192.168.1.XXX';
+
+        // Timer for the 3-second hold delay (stores commandName: timerId)
+        const keyTimers = {}; 
+        
+        // Global set to track keyboard keys currently held down (stores RAW key names like 'ArrowUp', 'Enter')
+        const keysPressed = new Set();
+        
+        // List of commands that require the keydown/keyup sequence (i.e., continuous press)
+        const continuousCommands = ['Up', 'Down', 'Left', 'Right', 'Rev', 'Fwd', 'VolumeUp', 'VolumeDown'];
+        // List of all keys we care about, to prevent default browser behavior
+        const allTrackedKeys = ['Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'Backspace', 'h', 'H', 'p', 'P', 'r', 'R', 'f', 'F', 'm', 'M', '+', '-', 'PageUp', 'PageDown', 'k', 'K'];
+
+
+        let lastIp = localStorage.getItem('rokuIP') || defaultIpPlaceholder;
+        rokuIpInput.value = lastIp === defaultIpPlaceholder ? '' : lastIp;
+        if (rokuIpInput.value) {
+            statusMessage.textContent = `Ready to connect to ${rokuIpInput.value}`;
+        }
+        
+        // --- Utility Functions ---
+
+        /**
+         * Simple utility function to pause execution for a given time.
+         * @param {number} ms - Milliseconds to sleep.
+         * @returns {Promise<void>}
+         */
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        /**
+         * Clears the error box and updates the status message.
+         * @param {string} message - The status message to display.
+         * @param {string} color - Tailwind color class for the text.
+         */
+        function updateStatus(message, color = 'text-gray-400') {
+            errorBox.classList.add('hidden');
+            statusMessage.classList.remove('hidden');
+            statusMessage.className = `text-center text-sm font-medium ${color}`;
+            statusMessage.textContent = message;
+        }
+
+        /**
+         * Clears the discovery error box and updates the status message in the modal.
+         * @param {string} message - The status message to display.
+         * @param {string} color - Tailwind color class for the text.
+         */
+        function updateDiscoveryStatus(message, color = 'text-gray-400') {
+            discoveryStatus.className = `text-center text-sm font-medium ${color} mb-4`;
+            discoveryStatus.textContent = message;
+        }
+
+        // --- Core ECP and Connection Functions ---
+        
+        /**
+         * Converts the current IP input value to a usable Roku IP.
+         * Displays error message if invalid.
+         */
+        function getRokuIp() {
+            const ip = rokuIpInput.value.trim();
+            if (!ip || ip === defaultIpPlaceholder) {
+                showError("Please enter a valid Roku IP address or use the Discovery feature.");
+                return null;
+            }
+            localStorage.setItem('rokuIP', ip);
+            return ip;
+        }
+
+        /**
+         * Shows an error message in the error box.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            errorBox.textContent = `Error: ${message}`;
+            errorBox.classList.remove('hidden');
+            statusMessage.classList.add('hidden');
+        }
+
+        /**
+         * Sends an ECP command to the Roku device.
+         * @param {'press'|'down'|'up'} type - The type of command: 'press', 'down' (key held), or 'up' (key released).
+         * @param {string} key - The ECP key command (e.g., 'Home', 'Select', 'VolumeUp', or 'Lit_A').
+         */
+        async function sendECPCommand(type, key) {
+            const ip = getRokuIp();
+            if (!ip) return false; // Return false if IP is missing
+
+            // Determine the correct ECP endpoint: keypress, keydown, or keyup
+            // 'Lit_' commands (text input) must always use 'keypress'
+            const endpoint = key.startsWith('Lit_') || type === 'press' ? 'keypress' : `${type}key`; 
+            const url = `http://${ip}:${defaultRokuPort}/${endpoint}/${key}`;
+            
+            // Only update status for single presses or the start/end of continuous ones
+            if (type === 'press' && !key.startsWith('Lit_')) {
+                 updateStatus(`Sending command: ${key}...`, 'text-purple-400');
+            } else if (type === 'down' && !key.startsWith('Lit_')) {
+                updateStatus(`Key Down: ${key} (Held ACTIVE)`, 'text-yellow-400');
+            } else if (type === 'up' && !key.startsWith('Lit_')) {
+                updateStatus(`Key Up: ${key} (Released)`, 'text-green-400');
+                setTimeout(() => updateStatus(`Ready to connect to ${ip}`), 3000);
+            }
+
+            try {
+                corsWarning.classList.remove('hidden');
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Length': 0 // Required for ECP
+                    }
+                });
+
+                if (response.ok) {
+                    if (type === 'press' && !key.startsWith('Lit_')) {
+                         updateStatus(`Command '${key}' sent successfully.`, 'text-green-400');
+                         setTimeout(() => updateStatus(`Ready to connect to ${ip}`), 3000);
+                    }
+                    return true; // Success
+                } else {
+                    if (type !== 'up' && type !== 'down' && !key.startsWith('Lit_')) {
+                        showError(`HTTP Error ${response.status} when sending '${key}'. Check if your Roku is online and the IP is correct.`);
+                    }
+                    return false; // HTTP Error
+                }
+            } catch (error) {
+                if (type !== 'up' && type !== 'down' && !key.startsWith('Lit_')) {
+                    console.error("Fetch failed (CORS/Network Issue):", error);
+                    showError(`CONNECTION FAILED: Check 1) CORS bypass is ON, 2) Roku IP is correct, 3) Roku is on.`);
+                }
+                return false; // Network Error
+            }
+        }
+
+
+        // --- Text Input Command Logic ---
+
+        /**
+         * Sends the text from the input box character by character as ECP Lit_ commands.
+         */
+        async function sendTextCommand() {
+            const text = textToSendInput.value.trim();
+            const ip = getRokuIp();
+
+            if (!ip) return;
+            if (!text) {
+                updateStatus("Text input is empty. Nothing to send.", 'text-yellow-500');
+                return;
+            }
+
+            updateStatus(`Starting to type: "${text}"...`, 'text-purple-400');
+            
+            // Disable the input and button during typing
+            textToSendInput.disabled = true;
+            document.querySelector('#text-to-send + button').disabled = true;
+
+            const characters = text.split('');
+            let successCount = 0;
+
+            for (const char of characters) {
+                // Encode the character for the ECP endpoint. Space must be encoded as %20.
+                // All other characters should be URL encoded.
+                let encodedChar = encodeURIComponent(char);
+                
+                // Construct the ECP key: 'Lit_' + encoded character
+                const key = `Lit_${encodedChar}`;
+                
+                // Send the character command
+                const success = await sendECPCommand('press', key);
+                
+                if (success) {
+                    successCount++;
+                } else {
+                    // Stop on the first failure (network error, bad IP, etc.)
+                    updateStatus(`Typing failed at character '${char}'. Check the error box.`, 'text-red-500');
+                    break;
+                }
+                
+                // MANDATORY DELAY: Wait 100ms before sending the next character to prevent flicker and overload.
+                await sleep(100);
+            }
+
+            // Re-enable controls
+            textToSendInput.disabled = false;
+            document.querySelector('#text-to-send + button').disabled = false;
+
+            if (successCount === characters.length) {
+                updateStatus(`Successfully typed "${text}" (${successCount} chars).`, 'text-green-500');
+            } else {
+                 updateStatus(`Typing completed with ${successCount}/${characters.length} characters sent.`, 'text-red-500');
+            }
+        }
+
+        // --- Other Modal and Connection Functions (Unchanged but included for completeness) ---
+
+        function openHelpModal() {
+            helpModal.classList.remove('hidden');
+        }
+
+        function closeHelpModal() {
+            helpModal.classList.add('hidden');
+        }
+
+        function openDiscoveryModal() {
+            discoveryModal.classList.remove('hidden');
+            discoveredList.innerHTML = '<li class="text-gray-400 text-sm">No devices found yet.</li>';
+            discoveryStatus.textContent = 'Scan for devices on the same network.';
+        }
+
+        function closeDiscoveryModal() {
+            discoveryModal.classList.add('hidden');
+        }
+
+        function selectDiscoveredIP(ip) {
+            rokuIpInput.value = ip;
+            localStorage.setItem('rokuIP', ip);
+            updateStatus(`IP set to ${ip}. Click 'Connect & Test' to verify.`, 'text-purple-400');
+            closeDiscoveryModal();
+        }
+
+        async function startIPDiscovery() {
+            startScanBtn.disabled = true;
+            startScanBtn.textContent = 'Scanning... Please Wait (Max 30s)';
+            discoveredList.innerHTML = '';
+            
+            const subnets = ['192.168.1.', '192.168.0.', '10.0.0.']; 
+            const maxHost = 20; 
+            const foundRokus = [];
+            
+            updateDiscoveryStatus('Scan Started...', 'text-yellow-500');
+            const testPromises = [];
+
+            for (const subnet of subnets) {
+                for (let i = 1; i <= maxHost; i++) {
+                    const ip = `${subnet}${i}`;
+                    testPromises.push(testSingleIP(ip));
+                }
+            }
+
+            const results = await Promise.allSettled(testPromises);
+
+            results.forEach(result => {
+                if (result.status === 'fulfilled' && result.value) {
+                    foundRokus.push(result.value);
+                }
+            });
+
+            if (foundRokus.length > 0) {
+                updateDiscoveryStatus(`Scan Complete! Found ${foundRokus.length} Roku device(s).`, 'text-green-500');
+                foundRokus.forEach(roku => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center p-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-600 transition';
+                    li.innerHTML = `
+                        <span class="text-white">${roku.name || 'Roku Device'}</span>
+                        <button onclick="selectDiscoveredIP('${roku.ip}')" class="text-sm px-3 py-1 bg-purple-500 rounded-md hover:bg-purple-400">
+                            Select: ${roku.ip}
+                        </button>
+                    `;
+                    discoveredList.appendChild(li);
+                });
+            } else {
+                updateDiscoveryStatus('Scan Complete. No Roku devices found in the common range.', 'text-red-500');
+                discoveredList.innerHTML = '<li class="text-gray-400 text-sm">Try manually entering an IP or ensure your CORS bypass is active.</li>';
+            }
+
+            startScanBtn.disabled = false;
+            startScanBtn.textContent = 'Start Network Scan';
+        }
+
+        async function testSingleIP(ip) {
+            const url = `http://${ip}:${defaultRokuPort}/query/device-info`;
+            
+            if (!discoveryModal.classList.contains('hidden')) {
+                updateDiscoveryStatus(`Checking: ${ip}...`, 'text-yellow-500');
+            }
+
+            try {
+                const response = await fetch(url, { signal: AbortSignal.timeout(4000) }); 
+
+                if (response.ok) {
+                    const text = await response.text();
+                    if (text.includes('<device-info>')) {
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(text, "text/xml");
+                        const nameElement = xmlDoc.getElementsByTagName('friendly-device-name')[0];
+                        const name = nameElement ? nameElement.textContent : 'Roku Device';
+                        return { ip, name };
+                    }
+                }
+            } catch (error) {
+                // Ignore network/timeout errors
+            }
+            return null;
+        }
+
+        async function checkConnection() {
+            const ip = getRokuIp();
+            if (!ip) return;
+
+            updateStatus(`Attempting connection to ${ip}...`, 'text-purple-400');
+
+            try {
+                const url = `http://${ip}:${defaultRokuPort}/query/device-info`;
+                corsWarning.classList.remove('hidden');
+
+                const response = await fetch(url);
+
+                if (response.ok) {
+                    const text = await response.text();
+                    if (text.includes('<device-info>')) {
+                        updateStatus(`Connection SUCCESSFUL! Device Info retrieved.`, 'text-green-500');
+                        corsWarning.classList.add('hidden');
+                    } else {
+                        updateStatus(`Connection successful, but received unexpected data.`, 'text-yellow-500');
+                    }
+                } else {
+                     showError(`Device check failed: HTTP Status ${response.status}. This likely means your Roku is refusing the connection or is offline.`);
+                }
+            } catch (error) {
+                console.error("Connection test failed (CORS/Network Issue):", error);
+                showError(`CONNECTION FAILED. Please ensure your CORS bypass extension is active.`);
+            }
+        }
+        
+        /**
+         * Handles the mouse down or touch start event for continuous buttons.
+         * Sets a 3-second timer before sending the 'down' command.
+         */
+        function handleContinuousCommand(command, type) {
+            
+            if (type === 'down') {
+                if (keyTimers[command] !== undefined) {
+                    return;
+                }
+                
+                const timerId = setTimeout(() => {
+                    delete keyTimers[command];
+                    sendECPCommand('down', command);
+                }, 3000); 
+
+                keyTimers[command] = timerId;
+                updateStatus(`Waiting for 3s hold for: ${command}...`, 'text-yellow-500');
+
+            } else if (type === 'up') {
+                const timerId = keyTimers[command];
+
+                if (timerId !== undefined) {
+                    // Case A: Key was released BEFORE the 3-second timer fired.
+                    clearTimeout(timerId);
+                    delete keyTimers[command];
+                    
+                    sendECPCommand('press', command); 
+                } else {
+                    // Case B: Key was released AFTER the 3-second timer fired.
+                    sendECPCommand('up', command);
+                }
+            }
+        }
+
+
+        /**
+         * Handles keyboard key presses (keydown).
+         */
+        function handleKeyDown(event) {
+            // Check if the focus is currently on an input field or if a modal is open.
+            const isInputFocused = (event.target.tagName === 'INPUT');
+            const isModalOpen = !helpModal.classList.contains('hidden') || !discoveryModal.classList.contains('hidden');
+
+            if (isInputFocused || isModalOpen) {
+                // If focus is on an input, only allow the Help key (K) and Escape (to close modals) to pass through.
+                if (event.key.toLowerCase() === 'k') {
+                    openHelpModal();
+                    event.preventDefault(); // Stop K from typing
+                } else if (event.key === 'Escape') {
+                    closeHelpModal(); // Attempt to close modal if open
+                }
+                // Allow normal text typing to occur in the input field.
+                return;
+            }
+            
+            const rawKey = event.key;
+            
+            if (allTrackedKeys.includes(rawKey)) {
+                event.preventDefault(); 
+            } else {
+                return;
+            }
+            
+            if (keysPressed.has(rawKey)) {
+                return;
+            }
+
+            let command = null;
+            
+            switch (rawKey) {
+                case 'Escape': command = 'Back'; break;
+                case 'ArrowUp': command = 'Up'; break;
+                case 'ArrowDown': command = 'Down'; break;
+                case 'ArrowLeft': command = 'Left'; break;
+                case 'ArrowRight': command = 'Right'; break;
+                case 'Enter': command = 'Select'; break;
+                case ' ': command = 'Play'; break;
+                case 'Backspace': command = 'Back'; break;
+                case 'h': case 'H': command = 'Home'; break;
+                case 'p': case 'P': command = 'Power'; break;
+                case 'r': case 'R': command = 'Rev'; break;
+                case 'f': case 'F': command = 'Fwd'; break;
+                case 'm': case 'M': command = 'VolumeMute'; break;
+                case '+': case 'PageUp': command = 'VolumeUp'; break;
+                case '-': case 'PageDown': command = 'VolumeDown'; break;
+                case 'k': case 'K': openHelpModal(); return; 
+                default: 
+                    return;
+            }
+
+            
+            if (command) {
+                keysPressed.add(rawKey);
+
+                const isContinuous = continuousCommands.includes(command);
+
+                if (isContinuous) {
+                    handleContinuousCommand(command, 'down');
+                } else {
+                    sendECPCommand('press', command);
+                }
+            }
+        }
+
+        /**
+         * Clears the key state and sends the keyup command for continuous actions.
+         */
+        function handleKeyUp(event) {
+            
+            // Do not process keyup if focus is on an input field (to allow native keyup)
+            if (event.target.tagName === 'INPUT') {
+                return;
+            }
+            
+            const rawKey = event.key;
+            
+            if (!keysPressed.has(rawKey)) return;
+
+            let command = null;
+            switch (rawKey) {
+                case 'ArrowUp': command = 'Up'; break;
+                case 'ArrowDown': command = 'Down'; break;
+                case 'ArrowLeft': command = 'Left'; break;
+                case 'ArrowRight': command = 'Right'; break;
+                case 'r': case 'R': command = 'Rev'; break;
+                case 'f': case 'F': command = 'Fwd'; break;
+                case '+': case 'PageUp': command = 'VolumeUp'; break;
+                case '-': case 'PageDown': command = 'VolumeDown'; break;
+            }
+
+            const isContinuous = command && continuousCommands.includes(command);
+
+            if (isContinuous) {
+                handleContinuousCommand(command, 'up');
+            }
+            
+            keysPressed.delete(rawKey);
+        }
+
+        // Add the event listeners to the entire window
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+    </script>
+</body>
+</html>
