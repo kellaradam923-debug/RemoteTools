@@ -39,6 +39,6 @@ However, if you host this page on a third-party domain like GitHub Pages (https:
 
 Workaround for Browser Hosting (Testing Only):
 You can use a browser extension to temporarily disable CORS checks for testing purposes. For Chrome, the following extension can be helpful:
-CORS Unblock Extension
+[CORS Unblock Extension] (https://chromewebstore.google.com/detail/lfhmikememgdcahcdlaciloancbhjino?utm_source=item-share-cb)
 
 Best Practice: To ensure reliable functionality, run this remote on your local machine or through a proxy that supports ECP commands.
